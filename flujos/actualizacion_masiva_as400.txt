@@ -1,0 +1,93 @@
+# ==================================================================
+# Actualización masiva de códigos en AS400 (IBM i) desde Excel
+# Power Automate Desktop · Autor: Elius Mendez
+#
+# Versión de portafolio: las rutas, el menú, los títulos de pantalla
+# y los datos son de ejemplo. No contiene datos de ninguna empresa.
+#
+# Cómo usarlo: copia todo este texto y pégalo (Ctrl+V) dentro de un
+# flujo vacío en el diseñador de Power Automate Desktop.
+# ==================================================================
+
+# ---------- 1. Configuración: cambia solo estas variables ----------
+SET RutaExcel TO $'''C:\\RPA\\datos\\plantilla_actualizacion.xlsx'''
+SET RutaSesion TO $'''C:\\RPA\\sesion\\SESION_AS400.ws'''
+SET RutaHllapi TO $'''C:\\Program Files (x86)\\IBM\\Client Access\\Emulator\\ehlapi32.dll'''
+SET MenuDestino TO $'''MENUEJEM'''
+SET PantallaDestino TO $'''08'''
+SET TextoMenuPrincipal TO $'''MENU PRINCIPAL'''
+SET TextoPantallaCuenta TO $'''Cuenta'''
+SET SegundosEspera TO 30
+SET SegundosLogin TO 120
+
+# Contadores para el resumen final
+SET FilaExcel TO 1
+SET TotalOK TO 0
+SET TotalOmitidas TO 0
+SET TotalYaHechas TO 0
+
+# ---------- 2. Abrir Excel y leer las cuentas ----------
+# Columnas esperadas: CUENTA | CODIGO | RESULTADO
+Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: RutaExcel Visible: True ReadOnly: False UseMachineLocale: False Instance=> ExcelInstance
+Excel.ReadFromExcel.ReadAllCells Instance: ExcelInstance FirstLineIsHeader: True GetCellContentsMode: Excel.GetCellContentsMode.PlainText RangeValue=> ExcelData
+
+# ---------- 3. Abrir el emulador y esperar el inicio de sesión ----------
+# El flujo NO guarda usuario ni contraseña: la persona inicia sesión
+# en el emulador y el robot espera a que aparezca el menú principal.
+System.RunApplication.RunApplication ApplicationPath: RutaSesion WindowStyle: System.ProcessWindowStyle.Normal ProcessId=> AppProcessId
+UIAutomation.WaitForWindow.ToOpenByTitleClass Title: $'''Session*''' Class: $'''''' FocusWindow: False
+TerminalEmulation.OpenTerminalSession.OpenSession HllapiPath: RutaHllapi SessionName: $'''A''' Session=> TerminalSession
+TerminalEmulation.WaitForTextOnTerminalSession.WaitForTextOnScreen Session: TerminalSession Text: TextoMenuPrincipal IsRegEx: False Timeout: SegundosLogin
+TerminalEmulation.SendKey Session: TerminalSession ControlKey: TerminalEmulation.ControlKey.Transmit
+
+# ---------- 4. Entrar al menú de la transacción ----------
+TerminalEmulation.MoveCursor Session: TerminalSession Row: 6 Column: 70
+TerminalEmulation.SetTextOnTerminalSession.SetTextOnCursorPosition Session: TerminalSession Text: MenuDestino TreatAtCharacterAsLiteral: False
+TerminalEmulation.SendKey Session: TerminalSession ControlKey: TerminalEmulation.ControlKey.Transmit
+TerminalEmulation.MoveCursor Session: TerminalSession Row: 12 Column: 2
+TerminalEmulation.SetTextOnTerminalSession.SetTextOnCursorPosition Session: TerminalSession Text: 1 TreatAtCharacterAsLiteral: False
+TerminalEmulation.SendKey Session: TerminalSession ControlKey: TerminalEmulation.ControlKey.Transmit
+
+# ---------- 5. Procesar cada cuenta ----------
+LOOP FOREACH CurrentItem IN ExcelData
+    Variables.IncreaseVariable Value: FilaExcel IncrementValue: 1
+    # Si ya se procesó en una corrida anterior, se salta (se puede re-ejecutar sin duplicar)
+    IF CurrentItem['RESULTADO'] = $'''OK''' THEN
+        Variables.IncreaseVariable Value: TotalYaHechas IncrementValue: 1
+        NEXT LOOP
+    END
+    # Validación: no se envía nada al sistema si falta la cuenta o el código
+    IF IsEmpty(CurrentItem['CUENTA']) OR IsEmpty(CurrentItem['CODIGO']) THEN
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''OMITIDA: falta cuenta o código''' Column: 3 Row: FilaExcel
+        Variables.IncreaseVariable Value: TotalOmitidas IncrementValue: 1
+        NEXT LOOP
+    END
+    # Confirmar que estamos en la pantalla de búsqueda de cuenta antes de escribir
+    TerminalEmulation.WaitForTextOnTerminalSession.WaitForTextOnScreen Session: TerminalSession Text: TextoPantallaCuenta IsRegEx: False Timeout: SegundosEspera
+    TerminalEmulation.MoveCursor Session: TerminalSession Row: 5 Column: 18
+    TerminalEmulation.SetTextOnTerminalSession.SetTextOnCursorPosition Session: TerminalSession Text: CurrentItem['CUENTA'] TreatAtCharacterAsLiteral: False
+    # Elegir la pantalla de destino
+    TerminalEmulation.MoveCursor Session: TerminalSession Row: 21 Column: 24
+    TerminalEmulation.SetTextOnTerminalSession.SetTextOnCursorPosition Session: TerminalSession Text: PantallaDestino TreatAtCharacterAsLiteral: False
+    TerminalEmulation.SendKey Session: TerminalSession ControlKey: TerminalEmulation.ControlKey.Transmit
+    TerminalEmulation.SendKey Session: TerminalSession ControlKey: TerminalEmulation.ControlKey.F9
+    # Escribir el código nuevo
+    TerminalEmulation.MoveCursor Session: TerminalSession Row: 13 Column: 9
+    TerminalEmulation.SetTextOnTerminalSession.SetTextOnCursorPosition Session: TerminalSession Text: CurrentItem['CODIGO'] TreatAtCharacterAsLiteral: False
+    TerminalEmulation.SendKey Session: TerminalSession ControlKey: TerminalEmulation.ControlKey.Transmit
+    # Confirmar el cambio (Y) y volver con F3
+    TerminalEmulation.MoveCursor Session: TerminalSession Row: 19 Column: 73
+    TerminalEmulation.SetTextOnTerminalSession.SetTextOnCursorPosition Session: TerminalSession Text: $'''Y''' TreatAtCharacterAsLiteral: False
+    TerminalEmulation.SendKey Session: TerminalSession ControlKey: TerminalEmulation.ControlKey.Transmit
+    TerminalEmulation.SendKey Session: TerminalSession ControlKey: TerminalEmulation.ControlKey.F3
+    # Dejar evidencia en el Excel y guardar después de cada cuenta
+    Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: $'''OK''' Column: 3 Row: FilaExcel
+    Excel.SaveExcel.Save Instance: ExcelInstance
+    Variables.IncreaseVariable Value: TotalOK IncrementValue: 1
+END
+
+# ---------- 6. Cerrar y mostrar el resumen ----------
+Excel.CloseExcel.CloseAndSave Instance: ExcelInstance
+Display.ShowMessageDialog.ShowMessage Title: $'''Proceso terminado''' Message: $'''Cuentas actualizadas: %TotalOK%
+Omitidas por datos incompletos: %TotalOmitidas%
+Ya estaban hechas: %TotalYaHechas%''' Icon: Display.Icon.Information Buttons: Display.Buttons.OK DefaultButton: Display.DefaultButton.Button1 IsTopMost: True ButtonPressed=> ButtonPressed
