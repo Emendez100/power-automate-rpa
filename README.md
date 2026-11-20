@@ -31,7 +31,8 @@ flowchart TD
     I --> K[Marcar OK y guardar] --> E
 ```
 
-📄 Código del flujo: [`flujos/actualizacion_masiva_as400.txt`](flujos/actualizacion_masiva_as400.txt)
+📄 Código del flujo: [`flujos/actualizacion_masiva_as400.txt`](flujos/actualizacion_masiva_as400.txt)  
+✅ Validado en Power Automate Desktop: el texto se pega en un flujo nuevo y carga sus 82 acciones sin errores.  
 📊 Plantilla de Excel de ejemplo: [`datos_ejemplo/plantilla_actualizacion.xlsx`](datos_ejemplo/plantilla_actualizacion.xlsx)
 
 ### Qué mejoré respecto a la primera versión
