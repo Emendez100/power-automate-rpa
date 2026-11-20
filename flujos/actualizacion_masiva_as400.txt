@@ -1,10 +1,8 @@
 # ==================================================================
 # Actualización masiva de códigos en AS400 (IBM i) desde Excel
 # Power Automate Desktop · Autor: Elius Mendez
-#
 # Versión de portafolio: las rutas, el menú, los títulos de pantalla
 # y los datos son de ejemplo. No contiene datos de ninguna empresa.
-#
 # Cómo usarlo: copia todo este texto y pégalo (Ctrl+V) dentro de un
 # flujo vacío en el diseñador de Power Automate Desktop.
 # ==================================================================
@@ -35,7 +33,7 @@ Excel.ReadFromExcel.ReadAllCells Instance: ExcelInstance FirstLineIsHeader: True
 # El flujo NO guarda usuario ni contraseña: la persona inicia sesión
 # en el emulador y el robot espera a que aparezca el menú principal.
 System.RunApplication.RunApplication ApplicationPath: RutaSesion WindowStyle: System.ProcessWindowStyle.Normal ProcessId=> AppProcessId
-UIAutomation.WaitForWindow.ToOpenByTitleClass Title: $'''Session*''' Class: $'''''' FocusWindow: False
+WAIT (UIAutomation.WaitForWindow.ToOpenByTitleClass Title: $'''Session*''' Class: $'''''' FocusWindow: False)
 TerminalEmulation.OpenTerminalSession.OpenSession HllapiPath: RutaHllapi SessionName: $'''A''' Session=> TerminalSession
 TerminalEmulation.WaitForTextOnTerminalSession.WaitForTextOnScreen Session: TerminalSession Text: TextoMenuPrincipal IsRegEx: False Timeout: SegundosLogin
 TerminalEmulation.SendKey Session: TerminalSession ControlKey: TerminalEmulation.ControlKey.Transmit
