@@ -64,4 +64,4 @@ Ver la [guía de uso](docs/GUIA_DE_USO.md).
 
 ---
 
-**Autor:** Elius Mendez · [LinkedIn](https://www.linkedin.com/in/elios-mendez-ramirez-09189a140/) · Licencia [MIT](LICENSE)
+**Autor:** Elius Mendez · [LinkedIn](https://www.linkedin.com/in/elius-mendez-ramirez-09189a140/) · Licencia [MIT](LICENSE)
